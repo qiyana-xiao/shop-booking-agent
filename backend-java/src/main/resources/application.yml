@@ -1,0 +1,63 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: shop-booking
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/shop_booking?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  # 不使用启动时自动建库建表，结构由 database/sql/01_schema.sql 手动执行
+  sql:
+    init:
+      mode: never
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 500ms
+      connect-timeout: 400ms
+  jackson:
+    time-zone: Asia/Shanghai
+    date-format: yyyy-MM-dd HH:mm:ss
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+  mapper-locations: classpath*:mapper/*.xml
+
+app:
+  jwt:
+    # 只从环境变量 JWT_SECRET 读取，长度不足 32 字节启动失败
+    secret: ${JWT_SECRET:}
+    expire-days: 7
+  deepseek:
+    api-key: ${DEEPSEEK_API_KEY:}
+    base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+    model: ${DEEPSEEK_MODEL:deepseek-chat}
+    connect-timeout-ms: 5000
+    read-timeout-ms: 60000
+    strict-tools: true
+  chat:
+    rate-limit-per-minute: 20
+    max-message-length: 500
+    max-history-messages: 12
+    summary-trigger-turns: 16
+    max-turns: 8
+    token-budget: 30000
+  booking:
+    hold-minutes: 15
+    slot-days: 30
+  retention-days: 90
+  cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+
+logging:
+  level:
+    com.shopbooking: info

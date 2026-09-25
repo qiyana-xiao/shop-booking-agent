@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.shopbooking.mapper.BookingMapper">
+
+    <!-- 会话数（有顾客发言的咨询量） -->
+    <select id="countConversations" resultType="long">
+        SELECT COUNT(*)
+        FROM conversations
+        WHERE shop_id = #{shopId}
+          AND created_at &gt;= #{from}
+          AND created_at &lt; #{to}
+          AND turn_count &gt; 0
+    </select>
+
+    <!-- 发生过转人工的会话数（AI 未自动接住） -->
+    <select id="countEscalatedConversations" resultType="long">
+        SELECT COUNT(DISTINCT e.conversation_id)
+        FROM escalations e
+        JOIN conversations c ON e.conversation_id = c.id
+        WHERE e.shop_id = #{shopId}
+          AND c.created_at &gt;= #{from}
+          AND c.created_at &lt; #{to}
+    </select>
+
+    <!-- 按状态统计预约单数（转化率分子：CONFIRMED 及之后） -->
+    <select id="countBookingsByStatus" resultType="long">
+        SELECT COUNT(*)
+        FROM bookings
+        WHERE shop_id = #{shopId}
+          AND created_at &gt;= #{from}
+          AND created_at &lt; #{to}
+          AND status IN
+          <foreach collection="statuses" item="s" open="(" separator="," close=")">
+              #{s}
+          </foreach>
+    </select>
+
+    <!-- 时段热度：按日期+开始时间聚合，服务层折叠为 星期×小时 网格 -->
+    <select id="heatBySlotTime" resultType="map">
+        SELECT s.slot_date AS slotDate, s.start_time AS startTime, COUNT(*) AS cnt
+        FROM bookings b
+        JOIN time_slots s ON b.slot_id = s.id
+        WHERE b.shop_id = #{shopId}
+          AND b.status IN ('CONFIRMED','CHECKED_IN','NO_SHOW')
+          AND s.slot_date BETWEEN #{from} AND #{to}
+        GROUP BY s.slot_date, s.start_time
+    </select>
+
+    <!-- 未接住 TOP 问题 -->
+    <select id="topEscalationReasons" resultType="map">
+        SELECT reason, COUNT(*) AS cnt
+        FROM escalations
+        WHERE shop_id = #{shopId}
+          AND created_at &gt;= #{from}
+        GROUP BY reason
+        ORDER BY cnt DESC
+        LIMIT 5
+    </select>
+
+    <!-- 某日预约联表视图（含档期与服务信息） -->
+    <select id="listDayViews" resultType="map">
+        SELECT b.id,
+               b.booking_no    AS bookingNo,
+               b.status,
+               b.customer_name AS customerName,
+               b.customer_phone AS customerPhone,
+               b.party_size    AS partySize,
+               b.remark,
+               b.source,
+               b.cancel_reason AS cancelReason,
+               b.hold_expire_at AS holdExpireAt,
+               b.created_at    AS createdAt,
+               b.checked_in_at AS checkedInAt,
+               b.customer_session_id AS customerSessionId,
+               s.slot_date     AS slotDate,
+               s.start_time    AS startTime,
+               s.end_time      AS endTime,
+               si.name         AS serviceName
+        FROM bookings b
+        JOIN time_slots s ON b.slot_id = s.id
+        JOIN service_items si ON b.service_item_id = si.id
+        WHERE s.slot_date = #{date}
+          AND b.shop_id = #{shopId}
+        ORDER BY s.start_time ASC
+    </select>
+
+    <!-- 未来预约按天汇总：date 直接格式化为字符串，避免序列化歧义 -->
+    <select id="upcomingSummary" resultType="map">
+        SELECT DATE_FORMAT(s.slot_date, '%Y-%m-%d') AS date,
+               COUNT(*) AS total,
+               IFNULL(SUM(b.party_size), 0) AS people
+        FROM bookings b
+        JOIN time_slots s ON b.slot_id = s.id
+        WHERE b.shop_id = #{shopId}
+          AND s.slot_date &gt; #{from}
+          AND s.slot_date &lt;= #{to}
+          AND b.status IN ('HELD','CONFIRMED')
+        GROUP BY s.slot_date
+        ORDER BY s.slot_date ASC
+    </select>
+
+    <!-- 导出用：一段日期范围内的预约明细 -->
+    <select id="listExportRows" resultType="map">
+        SELECT b.booking_no    AS bookingNo,
+               b.status,
+               s.slot_date     AS slotDate,
+               s.start_time    AS startTime,
+               si.name         AS serviceName,
+               b.party_size    AS partySize,
+               b.customer_name AS customerName,
+               b.customer_phone AS customerPhone,
+               b.remark,
+               b.cancel_reason AS cancelReason,
+               b.created_at    AS createdAt
+        FROM bookings b
+        JOIN time_slots s ON b.slot_id = s.id
+        JOIN service_items si ON b.service_item_id = si.id
+        WHERE b.shop_id = #{shopId}
+          AND s.slot_date BETWEEN #{from} AND #{to}
+        ORDER BY s.slot_date ASC, s.start_time ASC
+    </select>
+</mapper>

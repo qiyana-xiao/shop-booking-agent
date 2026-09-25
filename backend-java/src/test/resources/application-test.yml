@@ -1,0 +1,31 @@
+# 测试专用配置：H2 内存库（MySQL 模式）+ 固定 JWT 密钥。
+# 生产环境仍用 application.yml + .env，不受本文件影响。
+spring:
+  datasource:
+    url: jdbc:h2:mem:shop_booking;MODE=MySQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  # 仅测试启用 schema 初始化（H2 内存库）；生产保持 never，结构由 database/sql/01_schema.sql 手动执行
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:sql/schema-h2.sql
+
+app:
+  jwt:
+    secret: unit-test-secret-key-must-be-at-least-32-bytes
+    expire-days: 7
+  deepseek:
+    api-key: ""
+  chat:
+    rate-limit-per-minute: 100
+    max-turns: 8
+    token-budget: 30000
+  booking:
+    hold-minutes: 15
+    slot-days: 30
+
+logging:
+  level:
+    com.shopbooking: warn

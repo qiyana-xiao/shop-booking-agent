@@ -1,0 +1,30 @@
+# 密钥与本地环境
+backend-java/.env
+*.env
+!backend-java/.env.example
+
+# Java 构建产物，但保留预构建 jar（下载者无需安装 Maven）
+backend-java/target/*
+*.class
+*.jar
+!backend-java/target/shop-booking-backend.jar
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# 便携运行时（scripts\setup-runtime.ps1 自动下载，绝不提交）
+runtime/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# 日志
+*.log
+logs/
+
+# 系统
+.DS_Store
+Thumbs.db
